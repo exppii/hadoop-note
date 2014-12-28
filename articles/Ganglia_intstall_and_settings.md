@@ -22,7 +22,8 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 一般来说每个集群需要一个接收的gmond，每个网站需要一个gmetad
 
 **Ganglia工作流如图所示:**
-![ganglia data flow](./images/ganglia_data_flow.png)
+![ganglia data flow](../images/ganglia_data_flow.png)
+
 左边是运行在各个节点上的gmond进程，这个进程的配置只由节点上/etc/gmond.conf的文件决定。所以，
 在各个监视节点上都需要安装和配置该文件。右上角是更加负责的中心机（通常是这个集群中的一台，也可以
 不是）。在这个台机器上运行这着gmetad进程，收集来自各个节点上的信息并存储在rrdtool上，该进程
