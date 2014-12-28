@@ -33,7 +33,20 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 ```bash
 [root@client ~]# yum install –y gcc gcc-c++ libpng freetype zlib libdbi apr* libxml2-devel pkg-config glib pixman pango pango-devel freetye-devel fontconfig cairo cairo-devel libart_lgpl libart_lgpl-devel pcre* rrdtool*
 ```
-### 3. 安装expat并手动拷贝动态链接库到lib64下
+### 3. 安装expat并
+```bash
+[root@client ~]# cd /home/dream
+[root@client ~]# wget http://jaist.dl.sourceforge.net/project/expat/expat/2.1.0/expat-2.1.0.tar.gz
+[root@client ~]# tar -xf expat-2.1.0.tar.gz
+[root@client ~]# cd expat-2.1.0
+[root@client ~]# ./configure --prefix=/usr/local/expat
+[root@client ~]# make -j4 && make install
+```
+对于64位操作系统，需要手动拷贝动态链接库到lib64下：
+```bash
+[root@client ~]# mkdir /usr/local/expat/lib64  
+[root@client ~]# cp -a /usr/local/expat/lib/* /usr/local/expat/lib64/
+```
 ### 4. 安装confuse并手动拷贝动态链接库到lib64下
 ### 5. 安装Ganlia
 ### 6. 服务端配置(gmetad节点)
