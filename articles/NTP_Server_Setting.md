@@ -22,7 +22,7 @@
 ```
 ### NTP Server端（192.168.21.200）配置
 配置文件：**/etc/ntp.conf**
-```vim
+```apacheconf
 # For more information about this file, see the man pages
 # ntp.conf(5), ntp_acc(5), ntp_auth(5), ntp_clock(5), ntp_misc(5), ntp_mon(5).
 
@@ -90,7 +90,7 @@ ntpd           	0:关闭	1:关闭	2:启用	3:启用	4:启用	5:启用	6:关闭
 ```
 ### NTP 内网Client端配置
 为了简单，这里只列出了配置项，注释全部清理了。文件：**/etc/ntp.conf**
-```vim
+```apacheconf
 # For more information about this file, see the man pages
 # ntp.conf(5), ntp_acc(5), ntp_auth(5), ntp_clock(5), ntp_misc(5), ntp_mon(5).
 

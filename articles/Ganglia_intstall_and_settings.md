@@ -32,25 +32,106 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 ### 2. 安装必要依赖
 切换至**root**用户:
 ```bash
-[root@client ~]# yum install –y gcc gcc-c++ libpng freetype zlib libdbi apr* libxml2-devel pkg-config glib pixman pango pango-devel freetye-devel fontconfig cairo cairo-devel libart_lgpl libart_lgpl-devel pcre* rrdtool*
+[root@monitor ~]# yum install –y gcc gcc-c++ libpng freetype zlib libdbi apr* libxml2-devel pkg-config glib pixman pango pango-devel freetye-devel fontconfig cairo cairo-devel libart_lgpl libart_lgpl-devel pcre* rrdtool*
 ```
-### 3. 安装expat并
+### 3. 安装expat依赖
 ```bash
-[root@client ~]# cd /home/dream
-[root@client ~]# wget http://jaist.dl.sourceforge.net/project/expat/expat/2.1.0/expat-2.1.0.tar.gz
-[root@client ~]# tar -xf expat-2.1.0.tar.gz
-[root@client ~]# cd expat-2.1.0
-[root@client ~]# ./configure --prefix=/usr/local/expat
-[root@client ~]# make -j4 && make install
+[root@monitor ~]# cd /home/dream
+[root@monitor ~]# wget http://jaist.dl.sourceforge.net/project/expat/expat/2.1.0/expat-2.1.0.tar.gz
+[root@monitor ~]# tar -xf expat-2.1.0.tar.gz
+[root@monitor ~]# cd expat-2.1.0
+[root@monitor ~]# ./configure --prefix=/usr/local/expat
+[root@monitor ~]# make -j4 && make install
 ```
 对于64位操作系统，需要手动拷贝动态链接库到lib64下：
 ```bash
-[root@client ~]# mkdir /usr/local/expat/lib64  
-[root@client ~]# cp -a /usr/local/expat/lib/* /usr/local/expat/lib64/
+[root@monitor ~]# mkdir /usr/local/expat/lib64  
+[root@monitor ~]# cp -a /usr/local/expat/lib/* /usr/local/expat/lib64/
 ```
-### 4. 安装confuse并手动拷贝动态链接库到lib64下
+### 4. 安装confuse依赖
+```bash
+[root@monitor ~]# cd /home/dream
+[root@monitor ~]# wget http://ftp.twaren.net/Unix/NonGNU//confuse/confuse-2.7.tar.gz
+[root@monitor ~]# tar -xf confuse-2.7.tar.gz
+[root@monitor ~]# cd confuse-2.7
+[root@monitor ~]# ./configure CFLAGS=-fPIC --disable-nls --prefix=/usr/local/confuse
+[root@monitor ~]# make -j4 && make install
+```
+对于64位操作系统，需要手动拷贝动态链接库到lib64下：
+```bash
+[root@monitor ~]# mkdir -p /usr/local/confuse/lib64  
+[root@monitor ~]# cp -a -f /usr/local/confuse/lib/* /usr/local/confuse/lib64/
+```
 ### 5. 安装Ganlia
+```bash
+[root@monitor ~]# cd /home/dream
+[root@monitor ~]# wget http://jaist.dl.sourceforge.net/project/ganglia/ganglia%20monitoring%20core/3.6.0/ganglia-3.6.0.tar.gz
+[root@monitor ~]# tar -xf ganglia-3.6.0.tar.gz
+[root@monitor ~]# cd confuse-2.7
+[root@monitor ~]# ./configure --with-gmetad --enable-gexec --with-libconfuse=/usr/local/confuse --with-libexpat=/usr/local/expat --prefix=/usr/local/ganglia --sysconfdir=/etc/ganglia
+[root@monitor ~]# make -j4 && make install
+```
+添加至系统服务，对于服务端:
+```bash
+[root@monitor ~]# cp -f gmetad/gmetad.init /etc/init.d/gmetad
+[root@monitor ~]# cp -f /usr/local/ganglia/sbin/gmetad /usr/sbin/gmetad
+[root@monitor ~]# chkconfig --add gmetad
+```
+客户端：
+```bash
+[root@slave1 ~]# cp -f gmond/gmond.init /etc/init.d/gmond  
+[root@slave1 ~]# cp -f /usr/local/ganglia/sbin/gmond /usr/sbin/gmond  
+[root@slave1 ~]# chkconfig --add gmond  
+[root@slave1 ~]# gmond --default_config > /etc/ganglia/gmond.conf
+```
 ### 6. 服务端配置(gmetad节点)
+创建**rrdtool**数据目录，并根据apache的运行用户创建权限，例如apache运行于apache用户上 。
+```bash
+[root@monitor ~]# mkdir -p /var/lib/ganglia/rrds
+[root@monitor ~]# mkdir -p /var/lib/ganglia/dwoo
+[root@monitor ~]# chown -R root:root /var/lib/ganglia
+```
+配置数据源，修改**/etc/ganglia/gmetad.conf**:
+```apacheconf
+data_source "dream" 192.168.21.210 #gmetad 运行服务端地址
+gridname "master"
+```
+ 数据接收端口配置 **/etc/ganglia/gmond.conf**：
+ ```apacheconf
+ globals {  
+   daemonize = yes  
+   setuid = yes  
+   user = root /*运行Ganglia的用户*/  
+   debug_level = 0  
+   max_udp_msg_len = 1472  
+   mute = no  
+   deaf = no  
+   host_dmax = 120 /*secs */  
+   cleanup_threshold = 300 /*secs */  
+   gexec = no  
+   send_metadata_interval = 30 /*发送数据的时间间隔*/  
+ }  
+
+ cluster {  
+   name = "dream" /*集群名称*/  
+   owner = "root" /*运行Ganglia的用户*/  
+   latlong = "unspecified"  
+   url = "unspecified"  
+ }  
+
+ udp_send_channel {  
+   #  mcast_join =  239.2.11.71  /*注释掉组播*/  
+   #  host = 192.168.1.108  
+   port = 8649  
+   ttl = 1  
+ }  
+
+ udp_recv_channel {  #接受UDP包配置  
+   # mcast_join = 239.2.11.71  
+   port = 8649 /*端口*/
+   bind = 192.168.21.210 /*绑定gmetad接受端地址*/
+ }  
+ ```
 ### 7. 客户端配置(gmond节点)
 ### 8. Web服务配置
 ### 9. Ganglia监控HADOOP、HBASE配置选项
