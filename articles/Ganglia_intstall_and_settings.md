@@ -11,13 +11,9 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 一般来说每个集群需要一个接收的gmond，每个网站需要一个gmetad
 
 **Ganglia工作流如图所示:**
-![ganglia data flow](../images/ganglia_data_flow.png)
+![](../images/ganglia_data_flow.png)
 
-左边是运行在各个节点上的gmond进程，这个进程的配置只由节点上/etc/gmond.conf的文件决定。所以，
-在各个监视节点上都需要安装和配置该文件。右上角是更加负责的中心机（通常是这个集群中的一台，也可以
-不是）。在这个台机器上运行这着gmetad进程，收集来自各个节点上的信息并存储在rrdtool上，该进程
-的配置只由/etc/gmetad.conf决定。右下角显示了关于网页方面的一些信息。我们的浏览网站时调用php
-脚本，从RRDTool数据库中抓取信息，动态的生成各类图表。
+左边是运行在各个节点上的gmond进程，这个进程的配置只由节点上/etc/gmond.conf的文件决定。所以，在各个监视节点上都需要安装和配置该文件。右上角是更加负责的中心机（通常是这个集群中的一台，也可以不是）。在这个台机器上运行这着gmetad进程，收集来自各个节点上的信息并存储在rrdtool上，该进程的配置只由etc/gmetad.conf决定。右下角显示了关于网页方面的一些信息。我们的浏览网站时调用php脚本，从RRDTool数据库中抓取信息，动态的生成各类图表。
 ### 2. 安装必要依赖
 切换至**root**用户:
 
@@ -88,13 +84,19 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 [root@monitor ~]# mkdir -p /var/lib/ganglia/dwoo
 [root@monitor ~]# chown -R root:root /var/lib/ganglia
 ```
-配置数据源，修改**/etc/ganglia/gmetad.conf**:
+配置gmetad服务，修改文件 **/etc/ganglia/gmetad.conf**:
 
 ```apaheconf
 data_source "dream" 192.168.21.210 #gmetad 运行服务端地址
 gridname "master"
 ```
- 数据接收端口配置 **/etc/ganglia/gmond.conf**：
+启动gmetad服务。看到`start GANGLIA gmetad:[OK]`就代表运行正常了。通过`telnet localhost 8651`验证是否已经正常启动了。
+
+```bash
+[root@monitor ~]# service gmetad start
+```
+
+数据接收端口配置 **/etc/ganglia/gmond.conf**：
  
 ```apacheconf
  globals {  
@@ -131,17 +133,73 @@ gridname "master"
    bind = 192.168.21.210 /*绑定gmetad接受端地址*/
  }
 ```
-### 7. 客户端配置(gmond节点)
+启动gmond服务(监听client端发过来数据)。看到`start GANGLIA gomnd:[OK]`就代表运行正常了。通过`telnet localhost 8649`验证是否已经正常启动了。
 
-```cpp
-#include <iostream>
-using namespace std;
-int main() 
-{
-	return 0;
-}
-
+```bash
+[root@monitor ~]# service gmond start
 ```
 
+### 7. 客户端配置(gmond节点)
+
+客户端配置文件**/etc/ganglia/gmond.conf**:
+
+```apacheconf
+globals {  
+   daemonize = yes  
+   setuid = yes  
+   user = root /*运行Ganglia的用户*/  
+   debug_level = 0  
+   max_udp_msg_len = 1472  
+   mute = no  
+   deaf = no  
+   host_dmax = 120 /*secs */  
+   cleanup_threshold = 300 /*secs */  
+   gexec = no  
+   send_metadata_interval = 30 /*发送数据的时间间隔*/  
+ }  
+
+ cluster {  
+   name = "dream" /*集群名称*/  
+   owner = "root" /*运行Ganglia的用户*/  
+   latlong = "unspecified"  
+   url = "unspecified"  
+ }  
+
+ udp_send_channel {  
+   #  mcast_join =  239.2.11.71  /*注释掉组播*/  
+   host = 192.168.21.210 /*发送给安装gmetad的机器*/  
+   port = 8649  
+   ttl = 1  
+ }  
+
+ udp_recv_channel {  #接受UDP包配置  
+   # mcast_join = 239.2.11.71  
+   port = 8649 /*端口*/
+   # bind = 192.168.21.210 
+ }
+```
+启动gmond服务（向数据采集端发送数据),查看方式如数据接受端：
+
+```bash
+[root@monitor ~]# service gmetad start
+```
 ### 8. Web服务配置
+##### Apache httpd服务安装配置
+```bash
+[root@monitor ~]# yum -y install php httpd
+[root@monitor ~]# service httpd start //启动httpd 服务
+```
+测试安装是否安装成功。新建并保存文件 **/var/www/html/index.php**。使用浏览器查看 192.168.21.210/index.php，正常看到的是PHP的信息。
+
+```php
+<?php
+phpinfo();
+?>
+```
+安装Ganglia-web数据包。
+
+```bash
+[root@monitor ~]# cd /home/dream
+[root@monitor ~]# service httpd start //启动httpd 服务
+```
 ### 9. Ganglia监控HADOOP、HBASE配置选项
