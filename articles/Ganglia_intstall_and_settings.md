@@ -199,7 +199,49 @@ phpinfo();
 安装Ganglia-web数据包。
 
 ```bash
-[root@monitor ~]# cd /home/dream
-[root@monitor ~]# service httpd start //启动httpd 服务
+[root@monitor ~]# cd /home/ruifeng.shan  
+[root@monitor ~]# wget http://jaist.dl.sourceforge.net/project/ganglia/ganglia-web/3.5.10/ganglia-web-3.5.10.tar.gz  
+[root@monitor ~]# tar -xf ganglia-web-3.5.10.tar.gz  
+[root@monitor ~]# cd ganglia-web-3.5.10  
+[root@monitor ~]# make install
 ```
+这样在目录**/var/www/html**中生成了目录**ganglia**。通过http://192.168.21.210/ganglia集群状态信息
+
 ### 9. Ganglia监控HADOOP、HBASE配置选项
+对于Hadoop需要配置`HADOOP_CONF_DIR`目录下文件**hadoop-metrics2.properties**:
+
+```apacheconf
+##############一定要注释掉原来的这块，否则会监控不到#########  
+#*.sink.file.class=org.apache.hadoop.metrics2.sink.FileSink  
+# default sampling period, in seconds  
+#*.period=10  
+#############################################################
+
+namenode.sink.ganglia.servers=192.168.21.210:8649
+resourcemanager.sink.ganglia.servers= 192.168.21.210:8649
+datanode.sink.ganglia.servers= 192.168.21.210:8649
+nodemanager.sink.ganglia.servers= 192.168.21.210:8649 
+maptask.sink.ganglia.servers= 192.168.21.210:8649
+reducetask.sink.ganglia.servers= 192.168.21.210:8649  
+```
+对于HBase需要配置`HBASE_CONF_DIR`目录下文件**hadoop-metrics2-hbase.properties**:
+
+```apacheconf
+##############一定要注释掉原来的这块，否则会监控不到#########  
+#*.sink.file.class=org.apache.hadoop.metrics2.sink.FileSink  
+# default sampling period, in seconds  
+#*.period=10  
+#############################################################
+
+*.sink.ganglia.class=org.apache.hadoop.metrics2.sink.ganglia.GangliaSink31
+*.sink.ganglia.period=10
+hbase.sink.ganglia.period=10
+hbase.sink.ganglia.servers=192.168.21.210:8649 
+```
+
+### 10.0 错误处理
+###### Ganglia访问失败：
+> There was an error collecting ganglia data (127.0.0.1:8652): fsockopen error: Permission denied
+
+###### 解决方法：
+关闭selinux：在文件**/etc/selinux/config**，把`SELINUX=enforcing`改成`SELINUX=disable`；然后重启机器。可以使用命令`setenforce 0`临时来关闭selinux而不需要重启，刷新页面，即可访问。 重启httpd服务器即可看到效果。
