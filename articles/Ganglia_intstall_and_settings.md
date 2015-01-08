@@ -205,7 +205,7 @@ phpinfo();
 [root@monitor ~]# cd ganglia-web-3.5.10  
 [root@monitor ~]# make install
 ```
-这样在目录**/var/www/html**中生成了目录**ganglia**。通过http://192.168.21.210/ganglia集群状态信息
+这样在目录**/var/www/html**中生成了目录**ganglia**。通过http://192.168.21.210/ganglia 集群状态信息
 
 ### 9. Ganglia监控HADOOP、HBASE配置选项
 对于Hadoop需要配置`HADOOP_CONF_DIR`目录下文件**hadoop-metrics2.properties**:
