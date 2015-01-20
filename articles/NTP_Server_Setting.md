@@ -1,5 +1,5 @@
 集群时钟同步配置（NTP）
-----
+===
 目标环境，N台Linux CentOS6.5，一台作为NTP服务与外部NTP服务同步时间，同时，内网其他机器与这台
 机器做时间同步。
 
@@ -16,12 +16,14 @@
 ```
 在开启NTP服务前，先使用`ntpdate`命令直接同步（非平滑同步方式)，免得与外部时间相差太大
 ，让NTP不能正常同步:
+
 ```bash
 [root@client ~]# ntpdate -u cn.pool.ntp.org
 27 Dec 09:40:47 ntpdate[1971]: adjust time server 202.112.29.82 offset -0.078878 sec
 ```
 ### NTP Server端（192.168.21.200）配置
 配置文件：**/etc/ntp.conf**
+
 ```apacheconf
 # For more information about this file, see the man pages
 # ntp.conf(5), ntp_acc(5), ntp_auth(5), ntp_clock(5), ntp_misc(5), ntp_mon(5).
@@ -54,10 +56,12 @@ keys /etc/ntp/keys
 # Specify the key identifiers which are trusted.
 ```
 配置文件修改完成后保存退出，启动服务：
+
 ```bash
 [root@client ~]# service ntpd start
 ```
 启动后，一般需要5-10分钟才能与外部时间服务器同步时间。查看服务连接和监听：
+
 ```bash
 [root@client ~]# netstat -tlunp | grep ntp
 udp        0      0 192.168.21.200:123          0.0.0.0:*                               1130/ntpd
@@ -70,6 +74,7 @@ udp        0      0 :::123                      :::*                            
 
 ```
 使用`ntpq -p`查看网路中NTP服务器，同时显示客户端和每个服务器都关系：
+
 ```bash
 [root@client ~]# ntpq -p
 remote           refid      st t when poll reach   delay   offset  jitter
@@ -83,6 +88,7 @@ LOCAL(0)        .LOCL.          10 l  782   64    0    0.000    0.000   0.000
 
 ```
 OK,内网NTPD服务已经正常运行。添加开机启动：
+
 ```bash
 [root@client ~]# chkconfig ntpd on
 [root@client ~]# chkconfig --list ntpd
@@ -90,6 +96,7 @@ ntpd           	0:关闭	1:关闭	2:启用	3:启用	4:启用	5:启用	6:关闭
 ```
 ### NTP 内网Client端配置
 为了简单，这里只列出了配置项，注释全部清理了。文件：**/etc/ntp.conf**
+
 ```apacheconf
 # For more information about this file, see the man pages
 # ntp.conf(5), ntp_acc(5), ntp_auth(5), ntp_clock(5), ntp_misc(5), ntp_mon(5).
@@ -113,6 +120,7 @@ fudge 127.127.1.0 stratum 10
 #end
 ```
 保存退出后，先使用`ntpdate`手动同步下时间：
+
 ```bash
 [root@slave1 ~]# ntpdate -u 192.168.21.200
 ```
