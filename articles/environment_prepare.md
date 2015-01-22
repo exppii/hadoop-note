@@ -39,6 +39,11 @@ yum install java-1.8.0-openjdk-devel rsync vim
 ```
 
 ### 7. 配置时钟同步
+更改时区：
+
+```bash
+cp /usr/share/zoneinfo/America/Chicago /etc/localtime
+```
 参考文件: **NTP\_Server\_Setting.md**
 
 ### 8. 添加统一访问用户

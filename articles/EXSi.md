@@ -70,5 +70,5 @@ PowerCLI D:\>
 ```
 ### 参考链接
 
-[Adding multiple drivers to an ESXi 5.5 u2 ISO](http://blog.kihltech.com/2014/10/adding-multiple-drivers-to-an-esxi-5-5-u2-iso/)
-[ESXi-Customizer-PS Instructions](http://www.v-front.de/p/esxi-customizer-ps.html#download)
+* [Adding multiple drivers to an ESXi 5.5 u2 ISO](http://blog.kihltech.com/2014/10/adding-multiple-drivers-to-an-esxi-5-5-u2-iso/)
+* [ESXi-Customizer-PS Instructions](http://www.v-front.de/p/esxi-customizer-ps.html#download)
