@@ -442,7 +442,9 @@ zookeeper.connection.timeout.ms=1000000
 ```bash
 $ELS_HOME/bin/plugin --install jdbc --url http://xbib.org/repository/org/xbib/elasticsearch/plugin/elasticsearch-river-jdbc/1.4.0.8/elasticsearch-river-jdbc-1.4.0.8-plugin.zip
 ```
-拷贝 Phoenix JDBC driver (==此处jar已被修改，参考附录4==)到Elasticsearch plugins 目录：
+==参考 附录5 修改Elasticsearch JDBC 插件==
+
+拷贝 Phoenix JDBC driver到Elasticsearch plugins 目录：
 
 ```bash
 cp $PHOENIX_HOME/phoenix-4.2.2-client.jar $ELS_HOME/plugins/jdbc/ 
@@ -586,9 +588,45 @@ start-hbase.sh
 stop-hbase.sh
 ```
 ### Kafka启动/关闭
+kafka server 需要登录至每一台slave上启动
+
+```bash
+[dream@slave1 kafka_2.9.2-0.8.1.1]$ nohup bin/kafka-server-start.sh config/server.properties &
+[1] 1766
+[dream@slave1 kafka_2.9.2-0.8.1.1]$ nohup: 忽略输入并把输出追加到"nohup.out"
+...
+[dream@slave1 kafka_2.9.2-0.8.1.1]$ bin/kafka-server-stop.sh config/server.properties
+```
 
 ### ElasticSearch开启/关闭
-==以下操作推迟至生成EXSi模版之后执行，**只需要在其中一台slave上执行**==
+
+ElasticSearch 需要登录至每一台slave上启动
+
+```bash
+[dream@slave2 Apps]$ cd elasticsearch-1.4.2/
+[dream@slave2 elasticsearch-1.4.2]$ bin/elasticsearch &
+```
+查看是否成功启动
+
+```bash
+liuyoudeMacbook-Air:~ liuyou$ curl -X GET http://slave2.dream:9200
+{
+  "status" : 200,
+  "name" : "slave2.dream",
+  "cluster_name" : "dream",
+  "version" : {
+    "number" : "1.4.2",
+    "build_hash" : "927caff6f05403e936c20bf4529f144f0c89fd8c",
+    "build_timestamp" : "2014-12-16T14:11:12Z",
+    "build_snapshot" : false,
+    "lucene_version" : "4.10.2"
+  },
+  "tagline" : "You Know, for Search"
+}
+liuyoudeMacbook-Air:~ liuyou$
+```
+
+==以下操作**只需要在其中一台slave上执行**==
 
 ---
 添加索引
@@ -597,14 +635,19 @@ stop-hbase.sh
 curl -XPUT 'slave1.dream:9200/_river/phoenix_jdbc_river/_meta' -d '{
 	"flush_interval" : "5s",
     "type" : "jdbc",
-    "schedule" : "0/10 0-59 0-23 ? * *",
+    "schedule" : "0/20 0-59 0-23 ? * *",
     "jdbc" : {
-        "url" : "jdbc:phoenix:hbmaster.dream",
+        "url" : "jdbc:phoenix:dnsserver.dream",
         "user" : "",
         "password" : "",
         "sql" : "select * from EVENT_LOG"
        }
 }'
+```
+删除索引
+
+```bash
+curl -XDELETE 'slave1.dream:9200/_river/phoenix_jdbc_river'
 ```
 ---
 
@@ -1013,3 +1056,96 @@ vgextend byonedata /dev/sdb1
 ```
 ---
 ==待续==
+## 附录5 自定义jdbc插件
+elasticsearch-river-jdbc插件在更新最新数据时，对phoenix的sql支持有一些小问题。所以在此要更改其中文件org/xbib/elasticsearch/river/jdbc/strategy/simple/SimpleRiverSource.java 中几个地方
+
+在SimpleRiverSource初始化的地方 加入变量 `g_iMaxCreateTime `:
+
+```java
+private static long g_iMaxCreateTime = 0;
+
+   static {
+       BufferedReader br =null;
+       try {
+           br = new BufferedReader(new FileReader("./LastCreateTime.dream"));
+          String data = "",s ="";
+          while ((data=br.readLine())!= null){
+              s += data;
+          }
+           g_iMaxCreateTime = Long.valueOf(s);
+           br.close();
+       }catch (IOException e) {
+          logger.debug("fuck file not exists.");
+      }
+   }
+```
+SimpleRiverSource.execute 添加如下：
+
+```java
+private void execute(SQLCommand command) throws Exception {
+        Statement statement = null;
+        ResultSet results = null;
+
+        //only get new data add by byone
+        String sql = command.getSQL() + " where CreateTime > " + g_iMaxCreateTime;
+        logger.debug("fuck execute sql : {}", command.getSQL());
+        //----------------add by byone----------------------
+        command.setSQL(sql);
+        try {
+            if (command.isQuery()) {
+                	...
+                    merge(command, results, listener);
+
+                    //write to file add by byone
+                    logger.info("fuck maxcreatetime{}", g_iMaxCreateTime);
+                    PrintWriter pw = new PrintWriter(new File("./LastCreateTime.dream"));
+                    pw.write(String.valueOf(g_iMaxCreateTime));
+                    pw.close();
+                    //--------------add by byone -------------
+                }
+            } else {
+                ...
+                }
+            }
+        } finally {
+            ...
+        }
+    }
+```
+SimpleRiverSource.processRow 添加如下：
+
+```java
+ private void processRow(ResultSet results, KeyValueStreamListener listener)
+            throws SQLException, IOException {
+        ...
+        context.setLastRow(new HashMap());
+
+        String strColName; //add by byone
+        long iColValue; //add by byone
+        for (int i = 1; i <= columns; i++) {
+            try {
+				...
+                values.add(value);
+                
+                //update last createTime add by byone
+                strColName = metadata.getColumnLabel(i);
+                context.getLastRow().put("$row." + strColName, value);
+                if (strColName.compareToIgnoreCase("CREATETIME") == 0)
+                {
+                    iColValue = Long.valueOf(value.toString());
+                    if (iColValue > g_iMaxCreateTime)
+                    {
+                        g_iMaxCreateTime = iColValue;
+                    }
+                }
+                //--------------add by byone-----------------
+
+            } catch (ParseException e) {
+                ...
+            }
+        }
+        if (listener != null) {
+            ...
+        }
+    }
+```
