@@ -30,18 +30,18 @@ PC4～PC7直接安装，PC1～PC3虚拟机配置如下：
 |-|CPU|MEM|DISK|
 |---|---|---|---|
 |---|8core|24G|1.5TB|
-在虚拟机里安装Linux系统（CentOS6.5 x86_64）采用自定义分区方式，分区信息如下：
-![Custem_Partition](../images/Custem_Partition.png)
+CentOS 7 系统默认文件系统为 XFS格式。
+
 ### 2.网络配置
+**update:**
+>centos7下 直接使用命令 `nmtui`进入ui界面设置hostname以及网络IP地址。
 
-更改**hostname**：可以运行命令行`hostname slave3.dream`零时修改，要永久更改则需编辑文件文件:
-**/etc/sysconfig/network**
+更改**hostname**：可以运行命令行`hostname slave3.dream`零时修改，要永久更改则需编辑文件文件:**/etc/hostname**
 
-```apacheconf
-NETWORKING=yes
-HOSTNAME=slave3.dream
-GATEWAY=192.168.21.254
+```bash
+echo 'slave3.dream' > /etc/hostname
 ```
+
 ### 3.DNS服务器地址
 这里默认使用`192.168.21.211` DNS服务器部署参照附录2。
 
@@ -60,6 +60,9 @@ echo "PEERDNS=no" >> /etc/sysconfig/network-scripts/ifcfg-eth0
 ```bash
 echo 'nameserver 8.8.8.8' >> /etc/resolv.conf
 ```
+
+
+
 ### 4. 必要软件
 ```bash
 yum install vim wget ntp unzip 
@@ -84,7 +87,10 @@ passwd: all authentication tokens updated successfully.
 Port 22  #更改端口 默认为22
 PermitRootLogin no #阻止远程root登录 默认为 yes
 ```
-如果修改了端口,则需要配置防火墙规则 `/etc/sysconfig/iptables`:
+**update:**
+> CentOS 7 废弃了iptables，而使用 `firewalld` 以及`firewalld-cmd` 命令。
+
+~~如果修改了端口,则需要配置防火墙规则 `/etc/sysconfig/iptables`~~:
 
 ```apacheconf
 -A INPUT -m state --state NEW -m tcp -p tcp --dport 9527 -j ACCEPT
@@ -92,15 +98,18 @@ PermitRootLogin no #阻止远程root登录 默认为 yes
 重启服务
 
 ```bash
-[root@ localhost ~]# service sshd restart
-[root@ localhost ~]# service iptables restart
+[root@ localhost ~]# systemctl restart sshd.service
+[root@ localhost ~]# systemctl restart firewalld.service
 ```
 ### 7. 防火墙配置
 ==暂时先关闭==
 
 ```bash
-service iptables stop  #关闭防火墙
-chkconfig iptables off #开机不启动
+[root@localhost ~]# systemctl disable firewalld
+rm '/etc/systemd/system/dbus-org.fedoraproject.FirewallD1.service'
+rm '/etc/systemd/system/basic.target.wants/firewalld.service'
+[root@localhost ~]# systemctl stop firewalld
+[root@localhost ~]# 
 ```
 ### 8. [可选]更新系统
 ==暂时未执行==
@@ -135,7 +144,7 @@ cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 ```bash
 tar -xf hadoop-2.3.0.tar.gz /opt/
-chown -R dream:dream /opt/hadoop-2.3.0 /*更改权限*/
+chown -R dream:dream /opt/hadoop-2.3.0 #更改权限
 ```
 解压完之后，可删除原文件以节省空间。
 
@@ -156,37 +165,46 @@ chmod 775 /home/dream/Data
 
 ```apacheconf
 #set java path
-JAVA_HOME=/home/dream/Apps/jdk1.8.0_25
+JAVA_HOME=/home/dream/Apps/jdk8
 PATH=$PATH:$JAVA_HOME/bin
 CLASSPATH=.:$JAVA_HOME/lib
 export JAVA_HOME CLASSPATH
 
 #set hadoop path
-export HADOOP_HOME=/home/dream/Apps/hadoop-2.3.0
+export HADOOP_HOME=/home/dream/Apps/hadoop
 PATH=$PATH:$HADOOP_HOME/bin
 
 #set hbase path
-export HBASE_HOME=/home/dream/Apps/hbase-0.98.5
+export HBASE_HOME=/home/dream/Apps/hbase
 PATH=$PATH:$HBASE_HOME/bin
 
 #set zookeeper path
-#export ZOOKEEPER_HOME=/home/dream/Apps/zookeeper-3.4.6
+#export ZOOKEEPER_HOME=/home/dream/Apps/zookeeper
 #PATH=$PATH:$ZOOKEEPER_HOME/bin
 
 export PATH
 ```
 
-### 2. 提高文件打开上限
-编辑文件**/etc/security/limits.conf**和 **/etc/security/limits.d/90-nproc.conf**在结尾加上：
+### 2. Linux系统配置
+提高文件打开上限,编辑文件**/etc/security/limits.conf**在结尾加上：
 
 ```apacheconf
-*          soft     nproc          65535
-*          hard     nproc          65535
-*          soft     nofile         65535
-*          hard     nofile         65535
+*          -     nofile         65535
 ```
+Linux内核配置，编辑文件**/etc/sysctl.conf**，在结尾加上:
 
-编辑文件**/etc/sysctl.conf**，在结尾加上:`fs.file-max = 65536`。重登录后执行`ulimit -a`验证：
+```apacheconf
+net.core.somaxconn = 4000
+net.ipv4.tcp_fin_timeout = 20
+net.ipv4.tcp_max_syn_backlog = 40000
+net.ipv4.tcp_sack = 1
+net.ipv4.tcp_timestamps = 0
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_window_scaling = 1
+vm.swappiness = 0
+fs.file-max = 65536
+```
+重登录后执行`ulimit -a`验证：
 
 ```bash
 [root@slave2 dream]# ulimit -a
@@ -297,6 +315,7 @@ file locks                      (-x) unlimited
 **hadoop-env.sh**:
 
 ```bash
+export HADOOP_SSH_OPTS="-p 8922"
 export JAVA_HOME=/home/dream/Apps/jdk1.8.0_25
 export HADOOP_HEAPSIZE=4000
 export HADOOP_COMMON_LIB_NATIVE_DIR="/home/dream/Apps/hadoop-2.3.0/lib/native/"
@@ -322,6 +341,8 @@ slave3.dream
 ```bash
 cp $PHOENIX_HOME/*.jar $HBAE_HOME/lib/
 ```
+==**update:**==
+> PHOENIX_HOME目录下`phoenix-4.2.2-client-without-hbase.jar`和`phoenix-4.2.2-client.jar`中和HBase本身log日志包冲突，应该删除掉。
 
 在`$HBAE_HOME/lib`目录下创建文件夹`native/Linux-amd64-64`, 并拷贝`$HADOOP_HOME/lib/native/`下文件到此文件夹：
 
@@ -378,6 +399,7 @@ cp $HADOOP_HOME/lib/native/* $HBAE_HOME/lib/native/Linux-amd64-64
 **hbase-env.sh**:
 
 ```bash
+export HBASE_SSH_OPTS="-p 8922"
 export JAVA_HOME=/home/dream/Apps/jdk1.8.0_25
 export HBASE_LIBRARY_PATH=/home/dream/Apps/hbase-0.98.5/lib/native/Linux-amd64-64
 export HBASE_HEAPSIZE=6000
@@ -416,7 +438,7 @@ echo "1" > /home/dream/Data/zookeeper/myid
 编辑配置文件 **$KAFKA_HOME/config/server.properties** 
 
 ```bash
-broker.id=3 # broker.id 
+broker.id=2 # broker.id 
 port=9092 # 端口
 log.dirs=/home/dream/Data/kafka-logs #数据存储目录
 # The minimum age of a log file to be eligible for deletion
@@ -540,7 +562,7 @@ SHUTDOWN_MSG: Shutting down NameNode at hdpmaster.dream/192.168.21.213
 如上则表示格式成功，启动hdfs：
 
 ```bash
-cd /home/dream/hadoop-2.3.0
+cd /home/dream/Apps/hadoop-2.3.0
 sbin/start-dfs.sh 
 ```
 使用`jps`查看hdpmaster上当前运行java线程
@@ -729,7 +751,122 @@ PowerCLI D:\>
 * [Adding multiple drivers to an ESXi 5.5 u2 ISO](http://blog.kihltech.com/2014/10/adding-multiple-drivers-to-an-esxi-5-5-u2-iso/)
 * [ESXi-Customizer-PS Instructions](http://www.v-front.de/p/esxi-customizer-ps.html#download)
 ## 附录2 DNS服务器配置
-==空缺==
+安装**bind,bind-utils**服务：
+
+```bash
+yum install -y bind bind-utils
+```
+编辑**/etc/named.conf**,开启服务端口绑定，正向和反向域名解析信息：
+
+```apacheconf
+options {
+        listen-on port 53 { any; };   //更改为 any
+        listen-on-v6 port 53 { ::1; };
+        directory       "/var/named";
+        dump-file       "/var/named/data/cache_dump.db";
+        statistics-file "/var/named/data/named_stats.txt";
+        memstatistics-file "/var/named/data/named_mem_stats.txt";
+        allow-query     { any; };   //更改为 any
+        
+        ...
+        
+zone "." IN {
+        type hint;
+        file "named.ca";
+};        
+zone "dream" IN {
+        type master;
+        file "dream.zone";
+};
+
+zone "21.168.192.in-addr.arpa" IN {
+        type master;
+        file "192.168.21.zone";
+};
+```
+在/var/named/下创建正向和反向解析信息文件，dream.zone和192.168.100.zone文件，如下图所示：
+
+```bash
+$TTL 1D
+@       IN SOA  @ dream. (
+                                        20141028        ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+@               IN      NS      dream.
+dream.          IN      A       192.168.21.211
+monitor.dream.  IN      A       192.168.21.210
+dnsserver.dream. IN     A       192.168.21.211
+hbmaster.dream.         IN      A       192.168.21.212
+hdpmaster.dream. IN     A       192.168.21.213
+client.dream.   IN      A       192.168.21.200
+slave1.dream.   IN      A       192.168.21.201
+slave2.dream.   IN      A       192.168.21.202
+slave3.dream.   IN      A       192.168.21.203
+```
+
+192.168.21.zone
+
+```bash
+$TTL 1D
+@       IN SOA  @ dream. (
+                                        20150203520        ; serial
+                                        1D      ; refresh
+                                        1H      ; retry
+                                        1W      ; expire
+                                        3H )    ; minimum
+@               IN      NS      dream.
+211             IN      PTR     dream.
+210             IN      PTR     monitor.dream.
+211             IN      PTR     dnsserver.dream.
+212             IN      PTR     hbmaster.dream.
+213             IN      PTR     hdpmaster.dream.
+200             IN      PTR     client.dream.
+201             IN      PTR     slave1.dream.
+202             IN      PTR     slave2.dream.
+203             IN      PTR     slave3.dream.
+```
+
+修改dream.zone和192.168.100.zone文件所属用户named，chown :named dream.zone如下图所示：
+
+```bash
+[root@dnsserver named]# ll
+总用量 24
+-rw-r--r--. 1 named named  722 2月   3 16:30 10.1.1.zone
+drwxrwx---. 2 named named    6 12月 12 18:53 data
+-rw-r--r--. 1 named named  708 2月   3 16:27 dream.zone
+drwxrwx---. 2 named named    6 12月 12 18:53 dynamic
+-rw-r-----. 1 root  named 2076 1月  28 2013 named.ca
+-rw-r-----. 1 root  named  152 12月 15 2009 named.empty
+-rw-r-----. 1 root  named  152 6月  21 2007 named.localhost
+-rw-r-----. 1 root  named  168 12月 15 2009 named.loopback
+drwxrwx---. 2 named named    6 12月 12 18:53 slaves
+[root@dnsserver named]# 
+```
+
+配置/etc/resolv.conf文件，加入本机IP，如下图所示：
+
+```bash
+systemctl start named
+```
+启动named服务，如下图所示：
+
+```bash
+systemctl start named
+```
+通过nslookup或dig测试域名服务解析情况，如下图所示：
+
+```bash
+[root@dnsserver named]# nslookup slave1.dream
+Server:		10.1.1.4
+Address:	10.1.1.4#53
+
+Name:	slave1.dream
+Address: 10.1.1.1
+
+[root@dnsserver named]# 
+```
 ## 附录3 集群时钟同步配置（NTP）
 目标环境，N台Linux CentOS6.5，一台作为NTP服务与外部NTP服务同步时间，同时，内网其他机器与这台
 机器做时间同步。
@@ -789,7 +926,7 @@ keys /etc/ntp/keys
 配置文件修改完成后保存退出，启动服务：
 
 ```bash
-[root@client ~]# service ntpd start
+[root@client ~]# systemctl start ntpd.service
 ```
 启动后，一般需要5-10分钟才能与外部时间服务器同步时间。查看服务连接和监听：
 
@@ -821,9 +958,9 @@ LOCAL(0)        .LOCL.          10 l  782   64    0    0.000    0.000   0.000
 OK,内网NTPD服务已经正常运行。添加开机启动：
 
 ```bash
-[root@client ~]# chkconfig ntpd on
-[root@client ~]# chkconfig --list ntpd
-ntpd           	0:关闭	1:关闭	2:启用	3:启用	4:启用	5:启用	6:关闭
+[root@localhost ~]# systemctl enable ntpd
+ln -s '/usr/lib/systemd/system/ntpd.service' '/etc/systemd/system/multi-user.target.wants/ntpd.service'
+[root@localhost ~]# 
 ```
 ### NTP 内网Client端配置
 为了简单，这里只列出了配置项，注释全部清理了。文件：**/etc/ntp.conf**
@@ -866,7 +1003,7 @@ fudge 127.127.1.0 stratum 10
 ## 附录4 Linux LVM 逻辑卷配置安装
 ### 1.系统安装部分
 在虚拟机里安装Linux系统（CentOS6.5 x86_64 minimal）并预留分区给LVM卷：
-![Custem_Partition](../images/Custem_Partition.png)
+![Custem_Partition](../../images/Custem_Partition.png)
 ### 2.创建卷组
 安装完成后，使用`fdisk －l`查看当前系统分区情况：
 
