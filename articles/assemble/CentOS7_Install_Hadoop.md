@@ -1,4 +1,4 @@
-CentOS6.5 x64 部署大数据集群运行环境
+CentOS7.0 x64 部署大数据集群运行环境
 ===
 
 # 一、硬件环境
@@ -148,8 +148,8 @@ chown -R dream:dream /opt/hadoop-2.3.0 #更改权限
 ```
 解压完之后，可删除原文件以节省空间。
 
-### 11. LVM配置
-参考 **附录4** 将逻辑卷挂载至目录：**/home/dream/Data** ==**并更改操作权限**==
+###~~11. LVM配置~~
+~~参考 **附录4** 将逻辑卷挂载至目录：**/home/dream/Data** ==**并更改操作权限**==~~
 
 ```bash
 chown -R dream:dream /home/dream/Data
