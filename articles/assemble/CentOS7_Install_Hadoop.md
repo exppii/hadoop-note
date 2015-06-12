@@ -65,7 +65,7 @@ echo 'nameserver 8.8.8.8' >> /etc/resolv.conf
 
 ### 4. 必要软件
 ```bash
-yum install vim wget ntp unzip 
+yum install -y vim wget ntp unzip system-storage-manager rsync
 ```
 ### 5. 添加统一普通Hadoop用户
 添加统一访问用户
@@ -143,8 +143,9 @@ cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 解压安装(这里指定位置`/home/dream/Apps`),Hadoop为例：
 
 ```bash
-tar -xf hadoop-2.3.0.tar.gz /opt/
-chown -R dream:dream /opt/hadoop-2.3.0 #更改权限
+tar -xf hadoop-2.3.0.tar.gz /home/dream/Apps/
+chown -R dream:dream /home/dream/Apps/hadoop-2.3.0 #更改权限
+ln -s /home/dream/Apps/hadoop-2.3.0 /home/dream/Apps/hadoop
 ```
 解压完之后，可删除原文件以节省空间。
 
@@ -276,6 +277,22 @@ file locks                      (-x) unlimited
     	<value>yarn</value>
     	<description>map-reduce运行框架 yarn：分布式模式</description>
   	</property>
+  	<property>
+        <name>mapreduce.map.memory.mb</name>
+        <value>2048</value>
+    </property>
+    <property>
+        <name>mapreduce.reduce.memory.mb</name>
+        <value>4096</value>
+    </property>
+    <property>
+        <name>mapreduce.map.java.opts</name>
+        <value>-Xmx1536m</value>
+    </property>
+    <property>
+        <name>mapreduce.reduce.java.opts</name>
+        <value>-Xmx3072m</value>
+    </property>
 </configuration>
 ```
 **yarn-site.xml**:
@@ -310,21 +327,37 @@ file locks                      (-x) unlimited
     	<name>yarn.nodemanager.aux-services.mapreduce.shuffle.class</name>
     	<value>org.apache.hadoop.mapred.ShuffleHandler</value>
   	</property>
+  	<property>
+        <name>yarn.nodemanager.resource.memory-mb</name>
+        <value>8192</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.vmem-pmem-ratio</name>
+        <value>8</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.maximum-allocation-mb</name>
+        <value>8192</value>
+    </property>
+    <property>
+        <name>yarn.scheduler.minimum-allocation-mb</name>
+        <value>1024</value>
+    </property>
 </configuration>
 ```
 **hadoop-env.sh**:
 
 ```bash
 export HADOOP_SSH_OPTS="-p 8922"
-export JAVA_HOME=/home/dream/Apps/jdk1.8.0_25
-export HADOOP_HEAPSIZE=4000
-export HADOOP_COMMON_LIB_NATIVE_DIR="/home/dream/Apps/hadoop-2.3.0/lib/native/"
-export HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=/home/dream/Apps/hadoop-2.3.0/lib/native/"
+export JAVA_HOME=/home/dream/Apps/jdk8
+export HADOOP_HEAPSIZE=6000
+export HADOOP_COMMON_LIB_NATIVE_DIR="/home/dream/Apps/hadoop/lib/native/"
+export HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=/home/dream/Apps/hadoop/lib/native/"
 ```
 **yarn-env.sh**:
 
 ```bash
-export JAVA_HOME=/home/dream/Apps/jdk1.8.0_25
+export JAVA_HOME=/home/dream/Apps/jdk8
 JAVA_HEAP_MAX=-Xmx1000m
 YARN_HEAPSIZE=4000
 ```
@@ -400,7 +433,7 @@ cp $HADOOP_HOME/lib/native/* $HBAE_HOME/lib/native/Linux-amd64-64
 
 ```bash
 export HBASE_SSH_OPTS="-p 8922"
-export JAVA_HOME=/home/dream/Apps/jdk1.8.0_25
+export JAVA_HOME=/home/dream/Apps/jdk8
 export HBASE_LIBRARY_PATH=/home/dream/Apps/hbase-0.98.5/lib/native/Linux-amd64-64
 export HBASE_HEAPSIZE=6000
 export HBASE_OPTS="-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=60 -XX:MaxTenuringThreshold=3"
@@ -784,7 +817,7 @@ zone "21.168.192.in-addr.arpa" IN {
         file "192.168.21.zone";
 };
 ```
-在/var/named/下创建正向和反向解析信息文件，dream.zone和192.168.100.zone文件，如下图所示：
+在/var/named/下创建正向和反向解析信息文件，dream.zone和192.168.21.zone文件，如下图所示：
 
 ```bash
 $TTL 1D

@@ -57,7 +57,7 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 [root@monitor ~]# cd /home/dream
 [root@monitor ~]# wget http://jaist.dl.sourceforge.net/project/ganglia/ganglia%20monitoring%20core/3.6.0/ganglia-3.6.0.tar.gz
 [root@monitor ~]# tar -xf ganglia-3.6.0.tar.gz
-[root@monitor ~]# cd confuse-2.7
+[root@monitor ~]# cd ganglia-2.7
 [root@monitor ~]# ./configure --with-gmetad --enable-gexec --with-libconfuse=/usr/local/confuse --with-libexpat=/usr/local/expat --prefix=/usr/local/ganglia --sysconfdir=/etc/ganglia
 [root@monitor ~]# make -j4 && make install
 ```
@@ -71,8 +71,7 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 客户端：
 
 ```bash
-[root@slave1 ~]# cp -f gmond/gmond.init /etc/init.d/gmond  
-[root@slave1 ~]# cp -f /usr/local/ganglia/sbin/gmond /usr/sbin/gmond  
+[root@slave1 ~]# mkdir -p /usr/local/ganglia/var/run/
 [root@slave1 ~]# chkconfig --add gmond  
 [root@slave1 ~]# gmond --default_config > /etc/ganglia/gmond.conf
 ```
@@ -87,13 +86,14 @@ Ganglia 监控套件包括三个主要部分：**gmond**，**gmetad**，和网�
 配置gmetad服务，修改文件 **/etc/ganglia/gmetad.conf**:
 
 ```apaheconf
-data_source "dream" 192.168.21.210 #gmetad 运行服务端地址
+data_source "dream" monitor.dream #gmetad 运行服务端地址
 gridname "master"
+setuid_username "root"
 ```
 启动gmetad服务。看到`start GANGLIA gmetad:[OK]`就代表运行正常了。通过`telnet localhost 8651`验证是否已经正常启动了。
 
 ```bash
-[root@monitor ~]# service gmetad start
+[root@monitor ~]# systemctl start gmetad
 ```
 
 数据接收端口配置 **/etc/ganglia/gmond.conf**：
@@ -217,12 +217,12 @@ phpinfo();
 #*.period=10  
 #############################################################
 
-namenode.sink.ganglia.servers=192.168.21.210:8649
-resourcemanager.sink.ganglia.servers= 192.168.21.210:8649
-datanode.sink.ganglia.servers= 192.168.21.210:8649
-nodemanager.sink.ganglia.servers= 192.168.21.210:8649 
-maptask.sink.ganglia.servers= 192.168.21.210:8649
-reducetask.sink.ganglia.servers= 192.168.21.210:8649  
+namenode.sink.ganglia.servers=monitor.dream:8649
+resourcemanager.sink.ganglia.servers= monitor.dream:8649
+datanode.sink.ganglia.servers= monitor.dream:8649
+nodemanager.sink.ganglia.servers= monitor.dream:8649 
+maptask.sink.ganglia.servers= monitor.dream:8649
+reducetask.sink.ganglia.servers= monitor.dream:8649  
 ```
 对于HBase需要配置`HBASE_CONF_DIR`目录下文件**hadoop-metrics2-hbase.properties**:
 
