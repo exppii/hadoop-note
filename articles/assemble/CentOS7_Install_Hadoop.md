@@ -438,7 +438,7 @@ export HBASE_LIBRARY_PATH=/home/dream/Apps/hbase-0.98.5/lib/native/Linux-amd64-6
 export HBASE_HEAPSIZE=6000
 export HBASE_OPTS="-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=60 -XX:MaxTenuringThreshold=3"
 export HBASE_MANAGES_ZK=false
-export HADOOP_CONF_DIR=/home/dream/Apps/hadoop-2.3.0/etc/hadoop
+export HADOOP_CONF_DIR=/home/dream/Apps/hadoop/etc/hadoop
 ```
 **resgionserver**:
 
