@@ -266,6 +266,15 @@ file locks                      (-x) unlimited
     	<value>4096</value>
     	<description>最大链接数</description>
   	</property>
+  	<property>
+    <name>dfs.client.read.shortcircuit</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>dfs.domain.socket.path</name>
+    <value>/var/lib/hadoop-hdfs/dn_socket</value>
+    <description>mkdir /var/lib/hadoop-hdfs && chown -R dream:root /var/lib/hadoop-hdfs</description>
+  </property>
 </configuration>
 ```
 **mapred-site.xml**:
