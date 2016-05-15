@@ -463,7 +463,7 @@ slave3.dream
 编辑文件**$ZOOKEEPER_HOME/conf/zoo.cfg** (`cp zoo.cfg.template zoo.cfg`)
 
 ```bash
-udataDir=/home/dream/Data/zookeeper
+dataDir=/home/dream/Data/zookeeper
 maxClientCnxns=100
 server.1=dnsserver.dream:2888:3888
 server.2=hdpmaster.dream:2888:3888
@@ -701,13 +701,14 @@ curl -XPUT 'slave1.dream:9200/_river/phoenix_jdbc_river/_meta' -d '{
     "type" : "jdbc",
     "schedule" : "0/20 0-59 0-23 ? * *",
     "jdbc" : {
-        "url" : "jdbc:phoenix:dnsserver.dream",
+        "url" : "jdbc:phoenix:hbmaster.dream",
         "user" : "",
         "password" : "",
         "sql" : "select * from EVENT_LOG"
        }
 }'
 ```
+
 删除索引
 
 ```bash
@@ -940,6 +941,11 @@ Address: 10.1.1.1
 
 driftfile /var/lib/ntp/drift
 
+restrict default ignore
+
+interface ignore wildcard
+interface listen 192.168.21.200
+
 # 允许内网其他机器同步此机器
 restrict 192.168.21.0 mask 255.255.255.0 nomodify notrap
 
@@ -1004,6 +1010,13 @@ OK,内网NTPD服务已经正常运行。添加开机启动：
 ln -s '/usr/lib/systemd/system/ntpd.service' '/etc/systemd/system/multi-user.target.wants/ntpd.service'
 [root@localhost ~]# 
 ```
+更改防火墙配置
+
+```bash
+# iptables -A INPUT -s 192.168.1.0/24 -p udp --dport 123 -j ACCEPT
+# iptables -A INPUT -p udp --dport 123 -j DROP
+```
+
 ### NTP 内网Client端配置
 为了简单，这里只列出了配置项，注释全部清理了。文件：**/etc/ntp.conf**
 
